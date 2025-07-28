@@ -9,6 +9,7 @@ import kotlinx.coroutines.sync.withLock
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 
 /**
  * A thread-safe dependency injection and initialization orchestrator inspired by Star Trek's Borg collective.
@@ -121,10 +122,11 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
             // All drones in a unit can be assimilated in parallel
             val deferreds = unit.map { droneClass ->
                 async {
-                    val dt = measureTime {
+                    val dt = measureTimedValue {
                         assimilateDrone(droneClass, context)
                     }
-                    log("${droneClass.simpleName}: assimilated after $dt")
+                    log("${droneClass.simpleName}: assimilated after ${dt.duration}")
+                    dt.value
                 }
             }
             deferreds.awaitAll()
