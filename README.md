@@ -235,6 +235,28 @@ class RemoteConfigDrone : BorgDrone<Config, Context> {
 }
 ```
 
+## Enabling Logging 📝
+
+To enable logging in Borg, you can use the `enableLogging` parameter in the Borg constructor. This will automatically set up logging for all Borg operations.
+
+### Example:
+
+```kotlin
+val borg = Borg(
+    drones = setOf(
+        ConfigDrone(),
+        DatabaseDrone(),
+        ApiDrone(),
+        RepositoryDrone()
+    ),
+    enableLogging = true
+)
+```
+
+By setting `enableLogging` to `true`, Borg will log important lifecycle events and errors, helping you to monitor and debug the initialization process effectively.
+
+You can still configure the logging level and customize the logger as needed, but the `enableLogging` parameter provides a quick and easy way to get started with logging in Borg.
+
 ## Best Practices 💡
 
 ### 1. Keep Drones Focused

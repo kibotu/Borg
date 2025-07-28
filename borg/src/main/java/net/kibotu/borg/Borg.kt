@@ -102,11 +102,10 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
      * @throws ClassCastException if the cached value is not of type T
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T> requireAssimilated(droneClass: Class<out BorgDrone<T, C>>): T {
-        return collective[droneClass] as? T ?: throw BorgException.DroneNotAssimilatedException(
+    fun <T> requireAssimilated(droneClass: Class<out BorgDrone<T, C>>): T =
+        collective[droneClass] as? T ?: throw BorgException.DroneNotAssimilatedException(
             droneClass
         )
-    }
 
     /**
      * Orchestrates the initialization of all components in the collective while maximizing parallelism.
