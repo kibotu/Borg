@@ -4,70 +4,113 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.x-blue.svg)](https://kotlinlang.org)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A lightweight, coroutine-based dependency initialization orchestrator for Android applications. Borg ensures your components are initialized in the correct order, with maximum parallelization and bulletproof thread safety.
+A powerful, coroutine-based dependency initialization orchestrator for Android applications. Borg ensures your components are initialized in the correct order, with maximum parallelization and bulletproof thread safety.
 
 > Resistance is futile - your components will be assimilated in perfect order.
 
+## Table of Contents 📑
+- [Why Borg?](#why-borg-)
+- [Key Features](#key-features-)
+- [Installation](#installation-)
+- [Quick Start](#quick-start-)
+- [Advanced Usage](#advanced-usage-)
+- [Best Practices](#best-practices-)
+- [Error Handling](#error-handling-)
+- [Testing](#testing-)
+- [Comparison with Alternatives](#comparison-with-alternatives-)
+- [Contributing](#contributing-)
+- [License](#license-)
+
 ## Why Borg? 🤔
 
-Modern Android apps have complex initialization requirements:
-- Services that depend on configuration
-- Repositories that need database connections
-- Analytics that require user session
-- Network clients with specific setup needs
+Modern Android apps face complex initialization challenges:
 
-Borg solves these challenges by:
-- ✅ Automatically resolving initialization order
-- ✅ Parallelizing independent initializations
-- ✅ Ensuring thread-safe, once-only execution
-- ✅ Detecting circular dependencies early
-- ✅ Providing clear error messages
-- ✅ Supporting Kotlin coroutines natively
+### Common Problems
+- ❌ Race conditions in component initialization
+- ❌ Unclear dependency ordering
+- ❌ Blocking main thread during setup
+- ❌ Hard to test initialization logic
+- ❌ Difficult error recovery
+- ❌ Poor performance from sequential initialization
+
+### Borg's Solutions
+- ✅ Thread-safe, deterministic initialization
+- ✅ Automatic dependency resolution
+- ✅ Non-blocking coroutine-based setup
+- ✅ Easy to test with constructor injection
+- ✅ Structured error handling
+- ✅ Maximum parallel initialization
+
+## Key Features 🌟
+
+- **Type-Safe Dependencies**: Compile-time verification of dependency graph
+- **Parallel Initialization**: Automatic parallelization of independent components
+- **Coroutine Support**: Native suspend function support for async operations
+- **Thread Safety**: Bulletproof concurrency handling with deadlock prevention
+- **Error Handling**: Rich exception hierarchy with detailed context
+- **Testing Support**: Easy mocking and testing through constructor injection
+- **Performance**: Optimal initialization order with parallel execution
+- **Flexibility**: Generic context type for any initialization needs
 
 ## Installation 📦
 
-1. Add JitPack repository to your root build.gradle:
+1. Add JitPack repository:
 ```groovy
-allprojects {
+// settings.gradle.kts
+dependencyResolutionManagement {
     repositories {
-        maven { url 'https://jitpack.io' }
+        maven { url = uri("https://jitpack.io") }
     }
 }
 ```
 
 2. Add the dependency:
 ```groovy
+// build.gradle.kts
 dependencies {
-    implementation 'com.github.kibotu:Borg:latest-version'
+    implementation("com.github.kibotu:Borg:latest-version")
 }
 ```
 
-## Usage 🛠️
+## Quick Start 🚀
 
 ### 1. Define Your Components
 
 Create a drone for each component that needs initialization:
 
 ```kotlin
-class NetworkClientDrone : BorgDrone<NetworkClient> {
-    override suspend fun assimilate() = NetworkClient(
-        timeout = 30.seconds,
-        retries = 3
-    )
+// 1. Simple configuration
+class ConfigDrone : BorgDrone<AppConfig, Context> {
+    override suspend fun assimilate(context: Context, borg: Borg<Context>) =
+        AppConfig.load(context.assets.open("config.json"))
 }
 
-class ApiDrone(
-    private val configDrone: ConfigDrone,
-    private val networkDrone: NetworkClientDrone
-) : BorgDrone<ApiClient> {
+// 2. Database with config dependency
+class DatabaseDrone(
+    private val configDrone: ConfigDrone
+) : BorgDrone<AppDatabase, Context> {
+    override fun requiredDrones() = listOf(configDrone::class.java)
+    
+    override suspend fun assimilate(context: Context, borg: Borg<Context>): AppDatabase {
+        val config = borg.requireAssimilated(configDrone::class.java)
+        return Room.databaseBuilder(context, AppDatabase::class.java, config.dbName)
+            .build()
+    }
+}
+
+// 3. Repository combining multiple dependencies
+class RepositoryDrone(
+    private val dbDrone: DatabaseDrone,
+    private val apiDrone: ApiDrone
+) : BorgDrone<Repository, Context> {
     override fun requiredDrones() = listOf(
-        configDrone::class.java,
-        networkDrone::class.java
+        dbDrone::class.java,
+        apiDrone::class.java
     )
     
-    override suspend fun assimilate() = ApiClient(
-        baseUrl = configDrone.assimilate().apiUrl,
-        client = networkDrone.assimilate()
+    override suspend fun assimilate(context: Context, borg: Borg<Context>) = Repository(
+        database = borg.requireAssimilated(dbDrone::class.java),
+        api = borg.requireAssimilated(apiDrone::class.java)
     )
 }
 ```
@@ -76,53 +119,39 @@ class ApiDrone(
 
 ```kotlin
 class App : Application() {
+    private val configDrone = ConfigDrone()
+    private val databaseDrone = DatabaseDrone(configDrone)
+    private val apiDrone = ApiDrone(configDrone)
+    private val repositoryDrone = RepositoryDrone(databaseDrone, apiDrone)
+    
     override fun onCreate() {
         super.onCreate()
         
-        // Create your drones
-        val drones = setOf(
-            NetworkClientDrone(),
-            ConfigDrone(),
-            ApiDrone(configDrone, networkDrone),
-            DatabaseDrone(),
-            RepositoryDrone(databaseDrone)
-        )
-        
-        // Initialize everything in correct order
         lifecycleScope.launch {
-            val borg = Borg(drones)
-            borg.assimilate()
+            try {
+                // Create and initialize the collective
+                val borg = Borg(setOf(
+                    configDrone,
+                    databaseDrone,
+                    apiDrone,
+                    repositoryDrone
+                ))
+                
+                // Assimilate all components
+                borg.assimilate(applicationContext)
+                
+                // Store initialized components
+                appContainer.repository = repositoryDrone.assimilate(applicationContext, borg)
+                
+            } catch (e: BorgException) {
+                handleInitializationError(e)
+            }
         }
     }
 }
 ```
 
-### 3. Handle Errors
-
-Borg provides clear error types for common issues:
-
-```kotlin
-try {
-    borg.assimilate()
-} catch (e: BorgException) {
-    when (e) {
-        is BorgException.CircularDependencyException -> {
-            // Handle circular dependency detected
-            Log.e("App", "Circular dependency in: ${e.cycle}")
-        }
-        is BorgException.DroneNotFoundException -> {
-            // Handle missing dependency
-            Log.e("App", "Missing drone: ${e.requiredDrone}")
-        }
-        is BorgException.AssimilationException -> {
-            // Handle initialization failure
-            Log.e("App", "Failed to initialize: ${e.drone}", e.cause)
-        }
-    }
-}
-```
-
-## Features 🌟
+## Advanced Usage 🔧
 
 ### Parallel Initialization
 
@@ -130,85 +159,250 @@ Borg automatically parallelizes initialization of independent components:
 
 ```kotlin
 val drones = setOf(
-    AnalyticsDrone(),  // No dependencies
-    ConfigDrone(),     // No dependencies
-    DatabaseDrone(),   // No dependencies
-    ApiDrone(configDrone, networkDrone) // Waits for Config & Network
+    AnalyticsDrone(),     // No dependencies - Parallel
+    ConfigDrone(),        // No dependencies - Parallel
+    DatabaseDrone(),      // No dependencies - Parallel
+    ApiDrone(configDrone) // Waits for Config only
 )
+
+// Visualization of parallel execution:
+// Time →
+// Analytics   ▓▓▓▓▓▓▓
+// Config      ▓▓▓▓
+// Database    ▓▓▓▓▓▓▓▓
+// Api              ▓▓▓▓ (starts after Config)
 ```
 
-In this example, Analytics, Config, and Database initialize in parallel, while Api waits for its dependencies.
+### Handling Optional Dependencies
 
-### Thread Safety
+Use `getAssimilated()` for optional dependencies:
 
-All initializations are thread-safe and cached:
-- Components initialize exactly once
-- Results are cached for reuse
-- Concurrent access is handled safely
-- Deadlocks are prevented
+```kotlin
+class AnalyticsDrone(
+    private val userDrone: UserDrone? = null
+) : BorgDrone<Analytics, Context> {
+    override fun requiredDrones() = userDrone?.let {
+        listOf(it::class.java)
+    } ?: emptyList()
+    
+    override suspend fun assimilate(context: Context, borg: Borg<Context>): Analytics {
+        val analytics = FirebaseAnalytics.getInstance(context)
+        
+        // Optional user identification
+        userDrone?.let { drone ->
+            borg.getAssimilated(drone::class.java)?.let { user ->
+                analytics.setUserId(user.id)
+            }
+        }
+        
+        return analytics
+    }
+}
+```
 
-### Dependency Validation
+### Fallback Handling
 
-Borg validates the dependency graph before starting:
-- Detects missing dependencies
-- Identifies circular dependencies
-- Ensures complete initialization
-- Provides helpful error messages
+Implement graceful degradation:
+
+```kotlin
+class RemoteConfigDrone : BorgDrone<Config, Context> {
+    override suspend fun assimilate(context: Context, borg: Borg<Context>): Config {
+        return try {
+            // Try remote config first
+            FirebaseRemoteConfig.getInstance()
+                .fetchAndActivate()
+                .await()
+                .let { RemoteConfig() }
+        } catch (e: Exception) {
+            // Fall back to local config
+            LocalConfig.fromAssets(context)
+        }
+    }
+}
+```
 
 ## Best Practices 💡
 
-1. **Keep Drones Focused**
-   - One responsibility per drone
-   - Clear, explicit dependencies
-   - Immutable results
+### 1. Keep Drones Focused
 
-2. **Handle Failures Gracefully**
-   - Provide fallback values
-   - Clean up on failure
-   - Log detailed errors
+```kotlin
+// ❌ Bad: Too many responsibilities
+class MonolithicDrone : BorgDrone<AppServices, Context> {
+    override suspend fun assimilate(context: Context, borg: Borg<Context>): AppServices {
+        val db = Room.databaseBuilder(/*...*/).build()
+        val api = Retrofit.Builder().build()
+        val analytics = FirebaseAnalytics.getInstance(context)
+        return AppServices(db, api, analytics)
+    }
+}
 
-3. **Optimize Performance**
-   - Minimize dependencies
-   - Use parallel initialization
-   - Cache expensive operations
+// ✅ Good: Single responsibility
+class DatabaseDrone : BorgDrone<AppDatabase, Context> {
+    override suspend fun assimilate(context: Context, borg: Borg<Context>) =
+        Room.databaseBuilder(context, AppDatabase::class.java, "app.db").build()
+}
+```
 
-## Comparison with androidx.startup 🔄
+### 2. Handle Errors Gracefully
 
-While [androidx.startup](https://developer.android.com/topic/libraries/app-startup) provides component initialization, Borg offers several key advantages:
+```kotlin
+class ApiDrone(
+    private val configDrone: ConfigDrone
+) : BorgDrone<ApiClient, Context> {
+    override fun requiredDrones() = listOf(configDrone::class.java)
+    
+    override suspend fun assimilate(context: Context, borg: Borg<Context>): ApiClient {
+        try {
+            val config = borg.requireAssimilated(configDrone::class.java)
+            
+            // Validate configuration
+            require(config.apiUrl.isNotBlank()) { "API URL is required" }
+            
+            return ApiClient(config.apiUrl)
+                .also { client ->
+                    // Verify connectivity
+                    client.ping()
+                        .await()
+                        .also { response ->
+                            require(response.isSuccessful) {
+                                "API not reachable: ${response.code()}"
+                            }
+                        }
+                }
+                
+        } catch (e: Exception) {
+            throw BorgException.AssimilationException(
+                drone = this::class.java,
+                cause = e
+            )
+        }
+    }
+}
+```
+
+### 3. Document Dependencies
+
+```kotlin
+class RepositoryDrone(
+    /** Required for database access */
+    private val databaseDrone: DatabaseDrone,
+    /** Required for API communication */
+    private val apiDrone: ApiDrone,
+    /** Optional: For caching responses */
+    private val cacheDrone: CacheDrone? = null
+) : BorgDrone<Repository, Context> {
+    override fun requiredDrones() = buildList {
+        add(databaseDrone::class.java)
+        add(apiDrone::class.java)
+        cacheDrone?.let { add(it::class.java) }
+    }
+    
+    override suspend fun assimilate(context: Context, borg: Borg<Context>): Repository {
+        val db = borg.requireAssimilated(databaseDrone::class.java)
+        val api = borg.requireAssimilated(apiDrone::class.java)
+        val cache = cacheDrone?.let { borg.getAssimilated(it::class.java) }
+        
+        return Repository(db, api, cache)
+    }
+}
+```
+
+## Error Handling 🚨
+
+Borg provides structured error handling:
+
+```kotlin
+try {
+    borg.assimilate(context)
+} catch (e: BorgException) {
+    when (e) {
+        is BorgException.CircularDependencyException -> {
+            // Circular dependency detected
+            Log.e("Borg", "Dependency cycle: ${e.cycle.joinToString(" -> ")}")
+        }
+        is BorgException.DroneNotFoundException -> {
+            // Missing required drone
+            Log.e("Borg", "${e.drone} requires ${e.requiredDrone}")
+        }
+        is BorgException.AssimilationException -> {
+            // Initialization failed
+            Log.e("Borg", "Failed to initialize ${e.drone}", e.cause)
+        }
+        is BorgException.DroneNotAssimilatedException -> {
+            // Accessed uninitialized drone
+            Log.e("Borg", "Drone not ready: ${e.drone}")
+        }
+    }
+}
+```
+
+## Testing 🧪
+
+Borg is designed for testability:
+
+```kotlin
+class RepositoryTest {
+    @Test
+    fun `test repository initialization`() = runTest {
+        // Given
+        val mockDb = mockk<AppDatabase>()
+        val mockApi = mockk<ApiClient>()
+        
+        val dbDrone = object : BorgDrone<AppDatabase, Context> {
+            override suspend fun assimilate(context: Context, borg: Borg<Context>) = mockDb
+        }
+        
+        val apiDrone = object : BorgDrone<ApiClient, Context> {
+            override suspend fun assimilate(context: Context, borg: Borg<Context>) = mockApi
+        }
+        
+        val repositoryDrone = RepositoryDrone(dbDrone, apiDrone)
+        
+        // When
+        val borg = Borg(setOf(dbDrone, apiDrone, repositoryDrone))
+        borg.assimilate(mockk())
+        
+        // Then
+        val repository = repositoryDrone.assimilate(mockk(), borg)
+        assertNotNull(repository)
+    }
+}
+```
+
+## Comparison with Alternatives 🔄
+
+### vs androidx.startup
 
 | Feature | Borg | androidx.startup |
 |---------|------|-----------------|
-| Dependency Resolution | ✅ Automatic, type-safe dependency resolution | ❌ Manual ordering via dependencies() method |
-| Parallel Initialization | ✅ Automatic parallel execution of independent components | ❌ Sequential execution only |
-| Coroutine Support | ✅ Native suspend function support | ❌ Blocking calls only |
-| Error Handling | ✅ Structured exception hierarchy with detailed context | ❌ Basic exceptions without dependency context |
-| Thread Safety | ✅ Full thread safety with deadlock prevention | ✅ Basic thread safety |
-| Initialization Caching | ✅ Thread-safe result caching | ✅ Component-level caching |
-| Circular Dependency Detection | ✅ Compile-time detection with clear error messages | ❌ Runtime failures |
-| Testing Support | ✅ Easy to mock and test with constructor injection | ❌ Requires ContentProvider mocking |
-| Lazy Initialization | ✅ On-demand initialization support | ✅ Manual lazy initialization |
-| Configuration | ✅ Runtime configuration through constructor params | ❌ Manifest metadata only |
+| Dependency Resolution | ✅ Automatic, type-safe | ❌ Manual ordering |
+| Parallel Initialization | ✅ Automatic | ❌ Sequential only |
+| Coroutine Support | ✅ Native | ❌ Blocking only |
+| Error Handling | ✅ Structured | ❌ Basic |
+| Thread Safety | ✅ Comprehensive | ✅ Basic |
+| Testing Support | ✅ Constructor injection | ❌ ContentProvider mocking |
+| Configuration | ✅ Runtime | ❌ Manifest only |
 
-### When to Use What?
+### vs Dagger/Hilt
 
-**Choose Borg when you need:**
-- Complex dependency graphs with type safety
-- Parallel initialization for better performance
-- Coroutine-based async initialization
-- Runtime configuration of components
-- Clear error handling and debugging
-- Easy testing with dependency injection
-
-**Choose androidx.startup when:**
-- You have simple, linear initialization needs
-- You need ContentProvider-based auto-initialization
-- You're strictly following Android's component lifecycle
-- You prefer manifest-based configuration
-- You want the smallest possible initialization library
+| Feature | Borg | Dagger/Hilt |
+|---------|------|-------------|
+| Focus | Initialization order | Dependency injection |
+| Learning Curve | 📊 Medium | 📈 Steep |
+| Compile-time Safety | ✅ Yes | ✅ Yes |
+| Initialization Control | ✅ Explicit | ❌ Implicit |
+| Parallel Init | ✅ Automatic | ❌ Manual |
+| Android Integration | ✅ Native context | ✅ Full framework |
 
 ## Contributing 🤝
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License 📄
 

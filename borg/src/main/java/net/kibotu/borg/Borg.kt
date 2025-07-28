@@ -23,24 +23,33 @@ import java.util.concurrent.ConcurrentHashMap
  * - Topological sorting to respect dependency order
  * - Early detection of missing or circular dependencies
  * - Coroutine-based for non-blocking operation
+ * - Generic context type for flexible initialization
+ * - Access to cached drone values during assimilation
  * 
  * Example usage:
  * ```
- * val drones = setOf(
- *     DatabaseDrone(),      // No dependencies
- *     RepositoryDrone(),    // Depends on DatabaseDrone
- *     ViewModelDrone()      // Depends on RepositoryDrone
- * )
- * val borg = Borg(drones)
- * runBlocking { borg.assimilate() }
+ * // Dagger component example
+ * class DaggerDrone : BorgDrone<DaggerComponent, Context> {
+ *     override suspend fun assimilate(context: Context) = 
+ *         DaggerAppComponent.factory().create(context)
+ * }
+ * 
+ * class RepositoryDrone(private val daggerDrone: DaggerDrone) : BorgDrone<Repository, Context> {
+ *     override fun requiredDrones() = listOf(daggerDrone::class.java)
+ *     
+ *     override suspend fun assimilate(context: Context, borg: Borg<Context>): Repository {
+ *         val daggerComponent = borg.getAssimilated(daggerDrone::class.java)
+ *         return daggerComponent.repository()
+ *     }
+ * }
  * ```
  * 
  * @throws BorgException.DroneNotFoundException When a required drone is missing from the collective
  * @throws BorgException.CircularDependencyException When a circular dependency is detected
  * @throws BorgException.AssimilationException When a drone fails to initialize
  */
-class Borg(drones: Set<BorgDrone<*>>) {
-    private val droneMap: Map<Class<out BorgDrone<*>>, BorgDrone<*>> = drones
+class Borg<C>(drones: Set<BorgDrone<*, C>>) {
+    private val droneMap: Map<Class<out BorgDrone<*, C>>, BorgDrone<*, C>> = drones
         .associateBy { it::class.java }
         .also { map ->
             // Verify all dependencies are present in the collective
@@ -56,32 +65,43 @@ class Borg(drones: Set<BorgDrone<*>>) {
             }
         }
 
-    private val collective = ConcurrentHashMap<Class<out BorgDrone<*>>, Any?>()
-    private val assimilating = Collections.synchronizedSet(mutableSetOf<Class<out BorgDrone<*>>>())
-    private val assimilated = Collections.synchronizedSet(mutableSetOf<Class<out BorgDrone<*>>>())
+    private val collective = ConcurrentHashMap<Class<out BorgDrone<*, C>>, Any?>()
+    private val assimilating = Collections.synchronizedSet(mutableSetOf<Class<out BorgDrone<*, C>>>())
+    private val assimilated = Collections.synchronizedSet(mutableSetOf<Class<out BorgDrone<*, C>>>())
     private val assimilationMutex = Mutex()
     private val unitMutex = Mutex()
 
     /**
+     * Gets a previously assimilated drone value.
+     * 
+     * @param droneClass The class of the drone whose value you want to retrieve
+     * @return The assimilated value, or null if not yet assimilated
+     * @throws ClassCastException if the cached value is not of type T
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun <T> getAssimilated(droneClass: Class<out BorgDrone<T, C>>): T? {
+        return collective[droneClass] as? T
+    }
+
+    /**
+     * Gets a previously assimilated drone value, throwing if not found.
+     * 
+     * @param droneClass The class of the drone whose value you want to retrieve
+     * @return The assimilated value
+     * @throws BorgException.DroneNotAssimilatedException if the drone has not been assimilated yet
+     * @throws ClassCastException if the cached value is not of type T
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun <T> requireAssimilated(droneClass: Class<out BorgDrone<T, C>>): T {
+        return collective[droneClass] as? T ?: throw BorgException.DroneNotAssimilatedException(droneClass)
+    }
+
+    /**
      * Orchestrates the initialization of all components in the collective while maximizing parallelism.
      * 
-     * Why suspend?
-     * - Allows non-blocking initialization of slow components (e.g. network, disk I/O)
-     * - Enables parallel initialization without blocking threads
-     * - Integrates naturally with coroutine-based Android/Kotlin applications
-     * 
-     * Why cache results?
-     * - Prevents redundant initialization costs on subsequent calls
-     * - Ensures consistent singleton-like behavior across the app
-     * - Reduces memory usage by sharing initialized components
-     * 
-     * Implementation details:
-     * 1. Groups independent components into "units" that can be initialized in parallel
-     * 2. Processes units sequentially to respect dependencies
-     * 3. Within each unit, components are initialized concurrently
-     * 4. Results are cached thread-safely for future access
+     * @param context The context object needed for initialization of all drones
      */
-    suspend fun assimilate() = coroutineScope {
+    suspend fun assimilate(context: C) = coroutineScope {
         // Get sorted units for parallel assimilation where possible
         val units = getAssimilationUnits()
         
@@ -90,7 +110,7 @@ class Borg(drones: Set<BorgDrone<*>>) {
             // All drones in a unit can be assimilated in parallel
             val deferreds = unit.map { droneClass ->
                 async {
-                    assimilateDrone(droneClass)
+                    assimilateDrone(droneClass, context)
                 }
             }
             deferreds.awaitAll()
@@ -99,21 +119,9 @@ class Borg(drones: Set<BorgDrone<*>>) {
 
     /**
      * Initializes a single component while respecting its dependencies.
-     * 
-     * Why mutex-protected?
-     * - Prevents duplicate initialization under high concurrency
-     * - Ensures exactly-once semantics for component initialization
-     * - Maintains consistency of the dependency graph
-     * 
-     * The triple-check pattern is used because:
-     * 1. First check: Quick rejection without lock overhead
-     * 2. Second check: Handle race condition before expensive work
-     * 3. Final check: Ultimate guard against concurrent initialization
-     * 
-     * @throws BorgException.DroneNotFoundException When the requested drone is not in the collective
-     * @throws BorgException.AssimilationException When initialization fails
      */
-    private suspend fun assimilateDrone(clazz: Class<out BorgDrone<*>>): Any? {
+    @Suppress("UNCHECKED_CAST")
+    private suspend fun assimilateDrone(clazz: Class<out BorgDrone<*, C>>, context: C): Any? {
         // Return cached result if already assimilated
         collective[clazz]?.let { return it }
 
@@ -128,7 +136,7 @@ class Borg(drones: Set<BorgDrone<*>>) {
         coroutineScope {
             val deferreds = dependencies.map { dependency ->
                 async {
-                    assimilateDrone(dependency)
+                    assimilateDrone(dependency, context)
                 }
             }
             deferreds.awaitAll()
@@ -143,7 +151,7 @@ class Borg(drones: Set<BorgDrone<*>>) {
             collective[clazz]?.let { return it }
 
             try {
-                val result = drone.assimilate()
+                val result = (drone as BorgDrone<Any?, C>).assimilate(context, this)
                 collective[clazz] = result
                 result
             } catch (e: Exception) {
@@ -171,9 +179,9 @@ class Borg(drones: Set<BorgDrone<*>>) {
      * 
      * @throws BorgException.CircularDependencyException When a dependency cycle is detected
      */
-    private suspend fun getAssimilationUnits(): List<List<Class<out BorgDrone<*>>>> = unitMutex.withLock {
-        val units = mutableListOf<List<Class<out BorgDrone<*>>>>()
-        val stack = mutableListOf<Class<out BorgDrone<*>>>()
+    private suspend fun getAssimilationUnits(): List<List<Class<out BorgDrone<*, C>>>> = unitMutex.withLock {
+        val units = mutableListOf<List<Class<out BorgDrone<*, C>>>>()
+        val stack = mutableListOf<Class<out BorgDrone<*, C>>>()
         
         // Reset tracking sets under mutex lock
         assimilating.clear()
@@ -208,9 +216,9 @@ class Borg(drones: Set<BorgDrone<*>>) {
      * - stack: Maintains the current dependency chain
      */
     private fun processDrone(
-        drone: Class<out BorgDrone<*>>,
-        stack: MutableList<Class<out BorgDrone<*>>>,
-        units: MutableList<List<Class<out BorgDrone<*>>>>
+        drone: Class<out BorgDrone<*, C>>,
+        stack: MutableList<Class<out BorgDrone<*, C>>>,
+        units: MutableList<List<Class<out BorgDrone<*, C>>>>
     ) {
         // Check for circular dependencies
         if (drone in assimilating) {
@@ -238,7 +246,7 @@ class Borg(drones: Set<BorgDrone<*>>) {
         // If this is a root drone (no unassimilated dependents),
         // create a new unit
         if (isRootDrone(drone)) {
-            val unit = mutableListOf<Class<out BorgDrone<*>>>()
+            val unit = mutableListOf<Class<out BorgDrone<*, C>>>()
             while (stack.isNotEmpty() && !hasUnassimilatedDependents(stack.last())) {
                 unit.add(stack.removeAt(stack.lastIndex))
             }
@@ -248,13 +256,13 @@ class Borg(drones: Set<BorgDrone<*>>) {
         }
     }
 
-    private fun isRootDrone(drone: Class<out BorgDrone<*>>): Boolean {
+    private fun isRootDrone(drone: Class<out BorgDrone<*, C>>): Boolean {
         return droneMap.values.none { current ->
             drone in current.requiredDrones() && current::class.java !in assimilated
         }
     }
 
-    private fun hasUnassimilatedDependents(drone: Class<out BorgDrone<*>>): Boolean {
+    private fun hasUnassimilatedDependents(drone: Class<out BorgDrone<*, C>>): Boolean {
         return droneMap.values.any { current ->
             drone in current.requiredDrones() && current::class.java !in assimilated
         }

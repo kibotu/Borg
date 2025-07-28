@@ -14,8 +14,34 @@ package net.kibotu.borg
  * 2. Rich Context: Each exception carries relevant data for debugging
  * 3. Helpful Messages: Error descriptions guide users to solutions
  * 4. Clean Stack Traces: Original causes are preserved when wrapping errors
+ * 
+ * Example usage:
+ * ```kotlin
+ * try {
+ *     borg.assimilate(context)
+ * } catch (e: BorgException) {
+ *     when (e) {
+ *         is CircularDependencyException -> {
+ *             // Handle circular dependency detected
+ *             Log.e("Borg", "Circular dependency in: ${e.cycle}")
+ *         }
+ *         is DroneNotFoundException -> {
+ *             // Handle missing dependency
+ *             Log.e("Borg", "Missing drone: ${e.requiredDrone}")
+ *         }
+ *         is AssimilationException -> {
+ *             // Handle initialization failure
+ *             Log.e("Borg", "Failed to initialize: ${e.drone}", e.cause)
+ *         }
+ *         is DroneNotAssimilatedException -> {
+ *             // Handle attempt to access uninitialized drone
+ *             Log.e("Borg", "Drone not ready: ${e.drone}")
+ *         }
+ *     }
+ * }
+ * ```
  */
-sealed class BorgException(message: String) : Exception(message) {
+sealed class BorgException(message: String, cause: Throwable? = null) : Exception(message, cause) {
     /**
      * Thrown when components form a dependency cycle.
      * 
@@ -24,12 +50,20 @@ sealed class BorgException(message: String) : Exception(message) {
      * - Makes it clear which components need restructuring
      * - Provides context for architectural decisions
      * 
-     * Example cycle: DatabaseDrone -> RepositoryDrone -> ServiceDrone -> DatabaseDrone
+     * Example cycles:
+     * - DatabaseDrone -> RepositoryDrone -> ServiceDrone -> DatabaseDrone
+     * - ConfigDrone -> NetworkDrone -> ApiDrone -> ConfigDrone
+     * 
+     * Common fixes:
+     * 1. Extract shared dependencies into a separate drone
+     * 2. Use dependency injection to break cycles
+     * 3. Refactor component responsibilities
+     * 4. Use lazy initialization where appropriate
      */
     class CircularDependencyException(
-        val cycle: List<Class<out BorgDrone<*>>>
+        val cycle: List<Class<*>>
     ) : BorgException(
-        "Resistance detected: Circular dependency in drones: ${cycle.joinToString(" -> ") { it.simpleName }}"
+        "Circular dependency detected: ${cycle.joinToString(" -> ")}"
     )
 
     /**
@@ -42,16 +76,32 @@ sealed class BorgException(message: String) : Exception(message) {
      * - Enables detailed error reporting
      * 
      * Common causes:
-     * - Configuration errors
-     * - Resource access failures
-     * - Network connectivity issues
-     * - Invalid component state
+     * 1. Configuration errors
+     *    - Missing API keys
+     *    - Invalid URLs
+     *    - Malformed config files
+     * 
+     * 2. Resource access failures
+     *    - Database connection errors
+     *    - File system permissions
+     *    - Memory constraints
+     * 
+     * 3. Network connectivity issues
+     *    - DNS resolution failures
+     *    - Timeout errors
+     *    - SSL/TLS problems
+     * 
+     * 4. Invalid component state
+     *    - Null dependencies
+     *    - Invalid initialization order
+     *    - Resource contention
      */
     class AssimilationException(
-        val drone: Class<out BorgDrone<*>>,
+        val drone: Class<*>,
         cause: Throwable
     ) : BorgException(
-        "Resistance encountered: Failed to assimilate ${drone.simpleName}: ${cause.message}"
+        "Failed to assimilate drone $drone",
+        cause
     ) {
         override val cause: Throwable = cause
     }
@@ -66,14 +116,49 @@ sealed class BorgException(message: String) : Exception(message) {
      * - Helps maintain clean architecture
      * 
      * Common scenarios:
-     * - Missing dependency registration
-     * - Incorrect dependency declaration
-     * - Module configuration errors
+     * 1. Missing dependency registration
+     *    - Forgot to add drone to collective
+     *    - Typo in dependency class reference
+     * 
+     * 2. Incorrect dependency declaration
+     *    - Wrong class type in requiredDrones()
+     *    - Dependency on abstract/interface type
+     * 
+     * 3. Module configuration errors
+     *    - Missing DI module
+     *    - Incomplete feature setup
+     * 
+     * Best practices:
+     * 1. Use dependency injection frameworks
+     * 2. Maintain a central registry of drones
+     * 3. Document dependencies clearly
+     * 4. Write integration tests
      */
     class DroneNotFoundException(
-        val drone: Class<out BorgDrone<*>>,
-        val requiredDrone: Class<out BorgDrone<*>>
+        val drone: Class<*>,
+        val requiredDrone: Class<*>
     ) : BorgException(
-        "Resistance detected: Required drone ${requiredDrone.simpleName} not found for ${drone.simpleName}"
+        "Drone $drone requires $requiredDrone which is not in the collective"
+    )
+
+    /**
+     * Thrown when attempting to access a drone's result before it has been initialized.
+     * 
+     * Common scenarios:
+     * 1. Accessing drone outside of assimilation process
+     * 2. Race condition in parallel initialization
+     * 3. Missing dependency declaration
+     * 4. Incorrect initialization order
+     * 
+     * Best practices:
+     * 1. Always declare dependencies in requiredDrones()
+     * 2. Use requireAssimilated() only when certain of initialization
+     * 3. Handle potential DroneNotAssimilatedException in async code
+     * 4. Consider lazy initialization for optional dependencies
+     */
+    class DroneNotAssimilatedException(
+        val drone: Class<*>
+    ) : BorgException(
+        "Drone $drone has not been assimilated yet"
     )
 } 

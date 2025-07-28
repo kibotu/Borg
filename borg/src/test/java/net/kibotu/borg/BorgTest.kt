@@ -22,23 +22,23 @@ class BorgTest {
         // Given
         val assimilationOrder = mutableListOf<String>()
 
-        class Drone1 : BorgDrone<Unit> {
-            override suspend fun assimilate() {
+        class Drone1 : BorgDrone<Unit, Unit> {
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>) {
                 assimilationOrder.add("Drone1")
             }
         }
 
-        class Drone2 : BorgDrone<Unit> {
-            override fun requiredDrones(): List<Class<out BorgDrone<*>>> =
+        class Drone2 : BorgDrone<Unit, Unit> {
+            override fun requiredDrones(): List<Class<out BorgDrone<*, Unit>>> =
                 listOf(Drone1::class.java)
 
-            override suspend fun assimilate() {
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>) {
                 assimilationOrder.add("Drone2")
             }
         }
 
         // When
-        Borg(setOf(Drone2(), Drone1())).assimilate()
+        Borg(setOf(Drone2(), Drone1())).assimilate(Unit)
 
         // Then
         assertEquals(listOf("Drone1", "Drone2"), assimilationOrder)
@@ -47,18 +47,18 @@ class BorgTest {
     @Test
     fun `test circular dependency detection`() = runTest {
         // Given
-        abstract class BaseDrone : BorgDrone<Unit> {
-            override suspend fun assimilate() = Unit
+        abstract class BaseDrone : BorgDrone<Unit, Unit> {
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>) = Unit
         }
 
         lateinit var drone2: KClass<out BaseDrone>
 
         class Drone1 : BaseDrone() {
-            override fun requiredDrones(): List<Class<out BorgDrone<*>>> = listOf(drone2.java)
+            override fun requiredDrones(): List<Class<out BorgDrone<*, Unit>>> = listOf(drone2.java)
         }
 
         class Drone2 : BaseDrone() {
-            override fun requiredDrones(): List<Class<out BorgDrone<*>>> =
+            override fun requiredDrones(): List<Class<out BorgDrone<*, Unit>>> =
                 listOf(Drone1::class.java)
         }
 
@@ -66,7 +66,7 @@ class BorgTest {
 
         try {
             // When
-            Borg(setOf(Drone1(), Drone2())).assimilate()
+            Borg(setOf(Drone1(), Drone2())).assimilate(Unit)
             fail("Expected CircularDependencyException")
         } catch (e: BorgException.CircularDependencyException) {
             // Then
@@ -80,15 +80,15 @@ class BorgTest {
         // Given
         val counter = AtomicInteger(0)
 
-        class IndependentDrone1 : BorgDrone<Unit> {
-            override suspend fun assimilate() {
+        class IndependentDrone1 : BorgDrone<Unit, Unit> {
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>) {
                 delay(100) // Simulate work
                 counter.incrementAndGet()
             }
         }
 
-        class IndependentDrone2 : BorgDrone<Unit> {
-            override suspend fun assimilate() {
+        class IndependentDrone2 : BorgDrone<Unit, Unit> {
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>) {
                 delay(100) // Simulate work
                 counter.incrementAndGet()
             }
@@ -96,7 +96,7 @@ class BorgTest {
 
         // When
         val startTime = System.nanoTime()
-        Borg(setOf(IndependentDrone1(), IndependentDrone2())).assimilate()
+        Borg(setOf(IndependentDrone1(), IndependentDrone2())).assimilate(Unit)
         val duration = (System.nanoTime() - startTime) / 1_000_000 // Convert to milliseconds
 
         // Then
@@ -112,8 +112,8 @@ class BorgTest {
         val assimilationOrder = mutableListOf<String>()
         val assimilationTimes = mutableMapOf<String, Long>()
 
-        abstract class TimedDrone : BorgDrone<Unit> {
-            override suspend fun assimilate() {
+        abstract class TimedDrone : BorgDrone<Unit, Unit> {
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>) {
                 val startTime = System.nanoTime()
                 delay(50) // Simulate some work
                 assimilationOrder.add(this::class.simpleName ?: "unknown")
@@ -124,22 +124,22 @@ class BorgTest {
 
         class Drone1 : TimedDrone()
         class Drone2 : TimedDrone() {
-            override fun requiredDrones(): List<Class<out BorgDrone<*>>> =
+            override fun requiredDrones(): List<Class<out BorgDrone<*, Unit>>> =
                 listOf(Drone1::class.java)
         }
 
         class Drone3 : TimedDrone() {
-            override fun requiredDrones(): List<Class<out BorgDrone<*>>> =
+            override fun requiredDrones(): List<Class<out BorgDrone<*, Unit>>> =
                 listOf(Drone1::class.java)
         }
 
         class Drone4 : TimedDrone() {
-            override fun requiredDrones(): List<Class<out BorgDrone<*>>> =
+            override fun requiredDrones(): List<Class<out BorgDrone<*, Unit>>> =
                 listOf(Drone2::class.java, Drone3::class.java)
         }
 
         // When
-        Borg(setOf(Drone4(), Drone3(), Drone2(), Drone1())).assimilate()
+        Borg(setOf(Drone4(), Drone3(), Drone2(), Drone1())).assimilate(Unit)
 
         // Then
         // Drone1 should be first
@@ -160,8 +160,8 @@ class BorgTest {
         val concurrentRuns = 3
 
         // Create unique drone classes
-        abstract class BaseDrone(private val id: Int) : BorgDrone<Unit> {
-            override suspend fun assimilate() {
+        abstract class BaseDrone(private val id: Int) : BorgDrone<Unit, Unit> {
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>) {
                 delay(10) // Simulate work
                 assimilationCount.compute("Drone$id") { _, count -> (count ?: 0) + 1 }
             }
@@ -185,7 +185,7 @@ class BorgTest {
         coroutineScope {
             val jobs = List(concurrentRuns) {
                 async {
-                    borg.assimilate()
+                    borg.assimilate(Unit)
                 }
             }
             jobs.awaitAll()
@@ -218,14 +218,14 @@ class BorgTest {
 
     @Test
     fun `test error propagation`() = runTest {
-        class ResistingDrone : BorgDrone<Unit> {
-            override suspend fun assimilate() {
+        class ResistingDrone : BorgDrone<Unit, Unit> {
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>) {
                 throw RuntimeException("Resistance is futile, but I try anyway")
             }
         }
 
         try {
-            Borg(setOf(ResistingDrone())).assimilate()
+            Borg(setOf(ResistingDrone())).assimilate(Unit)
             fail("Expected AssimilationException")
         } catch (e: BorgException.AssimilationException) {
             assertEquals("Resistance is futile, but I try anyway", e.cause?.message)
@@ -235,19 +235,19 @@ class BorgTest {
 
     @Test
     fun `test missing drone detection`() = runTest {
-        class Drone1 : BorgDrone<Unit> {
-            override suspend fun assimilate() = Unit
+        class Drone1 : BorgDrone<Unit, Unit> {
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>) = Unit
         }
 
-        class Drone2 : BorgDrone<Unit> {
-            override fun requiredDrones(): List<Class<out BorgDrone<*>>> =
+        class Drone2 : BorgDrone<Unit, Unit> {
+            override fun requiredDrones(): List<Class<out BorgDrone<*, Unit>>> =
                 listOf(Drone1::class.java)
 
-            override suspend fun assimilate() = Unit
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>) = Unit
         }
 
         try {
-            Borg(setOf(Drone2())).assimilate() // Drone1 is missing
+            Borg(setOf(Drone2())).assimilate(Unit) // Drone1 is missing
             fail("Expected DroneNotFoundException")
         } catch (e: BorgException.DroneNotFoundException) {
             assertEquals(Drone2::class.java, e.drone)
@@ -259,25 +259,25 @@ class BorgTest {
     fun `test result caching`() = runTest {
         val counter = AtomicInteger(0)
 
-        class CachedDrone : BorgDrone<Int> {
-            override suspend fun assimilate(): Int {
+        class CachedDrone : BorgDrone<Int, Unit> {
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>): Int {
                 delay(10) // Simulate work
                 return counter.incrementAndGet()
             }
         }
 
-        class DependentDrone : BorgDrone<Int> {
-            override fun requiredDrones(): List<Class<out BorgDrone<*>>> =
+        class DependentDrone : BorgDrone<Int, Unit> {
+            override fun requiredDrones(): List<Class<out BorgDrone<*, Unit>>> =
                 listOf(CachedDrone::class.java)
 
-            override suspend fun assimilate(): Int {
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>): Int {
                 delay(10) // Simulate work
                 return counter.get() * 2
             }
         }
 
         val borg = Borg(setOf(CachedDrone(), DependentDrone()))
-        borg.assimilate()
+        borg.assimilate(Unit)
 
         assertEquals(1, counter.get()) // Should only be assimilated once
     }
