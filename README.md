@@ -17,7 +17,7 @@ Borg is a high-performance Android initialization orchestrator that brings order
 
 [Check out the article on Medium](https://medium.com/@kibotu/taming-the-android-startup-beast-why-we-built-borg-f1d23109ba43)
 
-![screenshot](docs/teaser.png)
+![screenshot](docs/teaser.webp)
 
 ## Table of Contents 📑
 - [Why Borg?](#why-borg-)
