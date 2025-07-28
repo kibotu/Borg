@@ -172,6 +172,40 @@ Borg validates the dependency graph before starting:
    - Use parallel initialization
    - Cache expensive operations
 
+## Comparison with androidx.startup 🔄
+
+While [androidx.startup](https://developer.android.com/topic/libraries/app-startup) provides component initialization, Borg offers several key advantages:
+
+| Feature | Borg | androidx.startup |
+|---------|------|-----------------|
+| Dependency Resolution | ✅ Automatic, type-safe dependency resolution | ❌ Manual ordering via dependencies() method |
+| Parallel Initialization | ✅ Automatic parallel execution of independent components | ❌ Sequential execution only |
+| Coroutine Support | ✅ Native suspend function support | ❌ Blocking calls only |
+| Error Handling | ✅ Structured exception hierarchy with detailed context | ❌ Basic exceptions without dependency context |
+| Thread Safety | ✅ Full thread safety with deadlock prevention | ✅ Basic thread safety |
+| Initialization Caching | ✅ Thread-safe result caching | ✅ Component-level caching |
+| Circular Dependency Detection | ✅ Compile-time detection with clear error messages | ❌ Runtime failures |
+| Testing Support | ✅ Easy to mock and test with constructor injection | ❌ Requires ContentProvider mocking |
+| Lazy Initialization | ✅ On-demand initialization support | ✅ Manual lazy initialization |
+| Configuration | ✅ Runtime configuration through constructor params | ❌ Manifest metadata only |
+
+### When to Use What?
+
+**Choose Borg when you need:**
+- Complex dependency graphs with type safety
+- Parallel initialization for better performance
+- Coroutine-based async initialization
+- Runtime configuration of components
+- Clear error handling and debugging
+- Easy testing with dependency injection
+
+**Choose androidx.startup when:**
+- You have simple, linear initialization needs
+- You need ContentProvider-based auto-initialization
+- You're strictly following Android's component lifecycle
+- You prefer manifest-based configuration
+- You want the smallest possible initialization library
+
 ## Contributing 🤝
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
