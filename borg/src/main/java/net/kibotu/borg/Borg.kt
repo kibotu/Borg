@@ -50,7 +50,7 @@ import kotlin.time.measureTime
  * @throws BorgException.CircularDependencyException When a circular dependency is detected
  * @throws BorgException.AssimilationException When a drone fails to initialize
  */
-class Borg<C>(drones: Set<BorgDrone<*, C>>) {
+class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean = false) {
     private val droneMap: Map<Class<out BorgDrone<*, C>>, BorgDrone<*, C>> = drones
         .associateBy { it::class.java }
         .also { map ->
@@ -74,6 +74,12 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>) {
         Collections.synchronizedSet(mutableSetOf<Class<out BorgDrone<*, C>>>())
     private val assimilationMutex = Mutex()
     private val unitMutex = Mutex()
+
+    fun log(message: String) {
+        if (enableLogging) {
+            Log.v("Borg", message)
+        }
+    }
 
     /**
      * Gets a previously assimilated drone value.
@@ -277,16 +283,6 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>) {
     private fun hasUnassimilatedDependents(drone: Class<out BorgDrone<*, C>>): Boolean {
         return droneMap.values.any { current ->
             drone in current.requiredDrones() && current::class.java !in assimilated
-        }
-    }
-
-    companion object {
-        var logEnabled = false
-
-        fun log(message: String) {
-            if (logEnabled) {
-                Log.v("Borg", message)
-            }
         }
     }
 }

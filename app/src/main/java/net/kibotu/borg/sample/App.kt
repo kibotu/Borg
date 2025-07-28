@@ -24,12 +24,12 @@ class App : Application() {
     }
 
     private fun setupBorg() {
-        Borg.logEnabled = true
         val borg = Borg(
-            setOf(
+            drones = setOf(
                 DaggerDrone(),
                 RepositoryDrone()
-            )
+            ),
+            enableLogging = true
         )
 
         // Initialize all drones with context
