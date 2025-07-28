@@ -86,31 +86,26 @@ class ConfigDrone : BorgDrone<AppConfig, Context> {
 }
 
 // 2. Database with config dependency
-class DatabaseDrone(
-    private val configDrone: ConfigDrone
-) : BorgDrone<AppDatabase, Context> {
-    override fun requiredDrones() = listOf(configDrone::class.java)
+class DatabaseDrone : BorgDrone<AppDatabase, Context> {
+    override fun requiredDrones() = listOf(ConfigDrone::class.java)
     
     override suspend fun assimilate(context: Context, borg: Borg<Context>): AppDatabase {
-        val config = borg.requireAssimilated(configDrone::class.java)
+        val config = borg.requireAssimilated(ConfigDrone::class.java)
         return Room.databaseBuilder(context, AppDatabase::class.java, config.dbName)
             .build()
     }
 }
 
 // 3. Repository combining multiple dependencies
-class RepositoryDrone(
-    private val dbDrone: DatabaseDrone,
-    private val apiDrone: ApiDrone
-) : BorgDrone<Repository, Context> {
+class RepositoryDrone : BorgDrone<Repository, Context> {
     override fun requiredDrones() = listOf(
-        dbDrone::class.java,
-        apiDrone::class.java
+        DatabaseDrone::class.java,
+        ApiDrone::class.java
     )
     
     override suspend fun assimilate(context: Context, borg: Borg<Context>) = Repository(
-        database = borg.requireAssimilated(dbDrone::class.java),
-        api = borg.requireAssimilated(apiDrone::class.java)
+        database = borg.requireAssimilated(DatabaseDrone::class.java),
+        api = borg.requireAssimilated(ApiDrone::class.java)
     )
 }
 ```
@@ -119,11 +114,6 @@ class RepositoryDrone(
 
 ```kotlin
 class App : Application() {
-    private val configDrone = ConfigDrone()
-    private val databaseDrone = DatabaseDrone(configDrone)
-    private val apiDrone = ApiDrone(configDrone)
-    private val repositoryDrone = RepositoryDrone(databaseDrone, apiDrone)
-    
     override fun onCreate() {
         super.onCreate()
         
@@ -131,17 +121,17 @@ class App : Application() {
             try {
                 // Create and initialize the collective
                 val borg = Borg(setOf(
-                    configDrone,
-                    databaseDrone,
-                    apiDrone,
-                    repositoryDrone
+                    ConfigDrone(),
+                    DatabaseDrone(),
+                    ApiDrone(),
+                    RepositoryDrone()
                 ))
                 
                 // Assimilate all components
                 borg.assimilate(applicationContext)
                 
                 // Store initialized components
-                appContainer.repository = repositoryDrone.assimilate(applicationContext, borg)
+                appContainer.repository = borg.requireAssimilated(RepositoryDrone::class.java)
                 
             } catch (e: BorgException) {
                 handleInitializationError(e)
@@ -161,15 +151,15 @@ Borg automatically parallelizes initialization of independent components:
 val drones = setOf(
     AnalyticsDrone(),     // No dependencies - Parallel
     ConfigDrone(),        // No dependencies - Parallel
-    DatabaseDrone(),      // No dependencies - Parallel
-    ApiDrone(configDrone) // Waits for Config only
+    DatabaseDrone(),      // Depends on Config - Waits for Config
+    ApiDrone()           // Depends on Config - Waits for Config
 )
 
 // Visualization of parallel execution:
 // Time →
 // Analytics   ▓▓▓▓▓▓▓
 // Config      ▓▓▓▓
-// Database    ▓▓▓▓▓▓▓▓
+// Database         ▓▓▓▓ (starts after Config)
 // Api              ▓▓▓▓ (starts after Config)
 ```
 
@@ -178,21 +168,15 @@ val drones = setOf(
 Use `getAssimilated()` for optional dependencies:
 
 ```kotlin
-class AnalyticsDrone(
-    private val userDrone: UserDrone? = null
-) : BorgDrone<Analytics, Context> {
-    override fun requiredDrones() = userDrone?.let {
-        listOf(it::class.java)
-    } ?: emptyList()
+class AnalyticsDrone : BorgDrone<Analytics, Context> {
+    override fun requiredDrones() = listOf(UserDrone::class.java)
     
     override suspend fun assimilate(context: Context, borg: Borg<Context>): Analytics {
         val analytics = FirebaseAnalytics.getInstance(context)
         
         // Optional user identification
-        userDrone?.let { drone ->
-            borg.getAssimilated(drone::class.java)?.let { user ->
-                analytics.setUserId(user.id)
-            }
+        borg.getAssimilated(UserDrone::class.java)?.let { user ->
+            analytics.setUserId(user.id)
         }
         
         return analytics
@@ -246,14 +230,12 @@ class DatabaseDrone : BorgDrone<AppDatabase, Context> {
 ### 2. Handle Errors Gracefully
 
 ```kotlin
-class ApiDrone(
-    private val configDrone: ConfigDrone
-) : BorgDrone<ApiClient, Context> {
-    override fun requiredDrones() = listOf(configDrone::class.java)
+class ApiDrone : BorgDrone<ApiClient, Context> {
+    override fun requiredDrones() = listOf(ConfigDrone::class.java)
     
     override suspend fun assimilate(context: Context, borg: Borg<Context>): ApiClient {
         try {
-            val config = borg.requireAssimilated(configDrone::class.java)
+            val config = borg.requireAssimilated(ConfigDrone::class.java)
             
             // Validate configuration
             require(config.apiUrl.isNotBlank()) { "API URL is required" }
@@ -283,24 +265,17 @@ class ApiDrone(
 ### 3. Document Dependencies
 
 ```kotlin
-class RepositoryDrone(
-    /** Required for database access */
-    private val databaseDrone: DatabaseDrone,
-    /** Required for API communication */
-    private val apiDrone: ApiDrone,
-    /** Optional: For caching responses */
-    private val cacheDrone: CacheDrone? = null
-) : BorgDrone<Repository, Context> {
-    override fun requiredDrones() = buildList {
-        add(databaseDrone::class.java)
-        add(apiDrone::class.java)
-        cacheDrone?.let { add(it::class.java) }
-    }
+class RepositoryDrone : BorgDrone<Repository, Context> {
+    override fun requiredDrones() = listOf(
+        DatabaseDrone::class.java,
+        ApiDrone::class.java,
+        CacheDrone::class.java
+    )
     
     override suspend fun assimilate(context: Context, borg: Borg<Context>): Repository {
-        val db = borg.requireAssimilated(databaseDrone::class.java)
-        val api = borg.requireAssimilated(apiDrone::class.java)
-        val cache = cacheDrone?.let { borg.getAssimilated(it::class.java) }
+        val db = borg.requireAssimilated(DatabaseDrone::class.java)
+        val api = borg.requireAssimilated(ApiDrone::class.java)
+        val cache = borg.getAssimilated(CacheDrone::class.java)
         
         return Repository(db, api, cache)
     }
@@ -375,13 +350,37 @@ class RepositoryTest {
 
 | Feature | Borg | androidx.startup |
 |---------|------|-----------------|
-| Dependency Resolution | ✅ Automatic, type-safe | ❌ Manual ordering |
-| Parallel Initialization | ✅ Automatic | ❌ Sequential only |
-| Coroutine Support | ✅ Native | ❌ Blocking only |
-| Error Handling | ✅ Structured | ❌ Basic |
-| Thread Safety | ✅ Comprehensive | ✅ Basic |
-| Testing Support | ✅ Constructor injection | ❌ ContentProvider mocking |
-| Configuration | ✅ Runtime | ❌ Manifest only |
+| Dependency Resolution | ✅ Automatic, type-safe with compile-time validation | ✅ Automatic via dependencies() method |
+| Parallel Initialization | ✅ Automatic parallel execution of independent components | ❌ Sequential execution only |
+| Coroutine Support | ✅ Native suspend function support | ❌ Blocking calls only |
+| Error Handling | ✅ Structured exception hierarchy with dependency context | ❌ Basic exceptions without dependency context |
+| Thread Safety | ✅ Full thread safety with deadlock prevention | ✅ Basic thread safety |
+| Initialization Caching | ✅ Thread-safe result caching | ✅ Component-level caching |
+| Circular Dependency Detection | ✅ Compile-time detection with clear error messages | ✅ Runtime detection |
+| Testing Support | ✅ Easy to mock with direct instantiation | ❌ Requires ContentProvider mocking |
+| Lazy Initialization | ✅ On-demand initialization with dependency tracking | ✅ Manual lazy initialization |
+| Configuration | ✅ Runtime configuration with constructor params | ❌ Manifest metadata only |
+| Auto-initialization | ❌ Manual Application.onCreate() call | ✅ Automatic via ContentProvider |
+| Library Size | ❌ Larger due to coroutine support | ✅ Very small footprint |
+
+### When to Use What?
+
+**Choose Borg when you need:**
+- Type-safe dependency management with compile-time validation
+- Maximum performance through parallel initialization
+- Async operations with coroutine support
+- Rich error context for debugging dependency issues
+- Runtime configuration flexibility
+- Direct component testing without Android dependencies
+- Complex dependency graphs with clear visualization
+
+**Choose androidx.startup when:**
+- You want automatic initialization without Application class changes
+- Your initialization chain is relatively simple
+- You prefer configuration through AndroidManifest.xml
+- Minimal library footprint is critical
+- You're strictly following Android component lifecycle
+- You don't need async initialization support
 
 ### vs Dagger/Hilt
 
