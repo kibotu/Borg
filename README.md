@@ -138,6 +138,9 @@ class RepositoryDrone : BorgDrone<Repository, Context> {
 
 ```kotlin
 class App : Application() {
+
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    
     override fun onCreate() {
         super.onCreate()
         
