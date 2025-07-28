@@ -4,11 +4,12 @@ import android.util.Log
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
 
 /**
@@ -76,6 +77,16 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
     private val assimilationMutex = Mutex()
     private val unitMutex = Mutex()
 
+    // Define an enum for assimilation state
+    enum class AssimilationState {
+        NOT_STARTED,
+        IN_PROGRESS,
+        COMPLETE
+    }
+
+    val assimilationState: SharedFlow<AssimilationState>
+        field = MutableStateFlow(AssimilationState.NOT_STARTED)
+
     fun log(message: String) {
         if (enableLogging) {
             Log.v("Borg", message)
@@ -90,9 +101,7 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
      * @throws ClassCastException if the cached value is not of type T
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T> getAssimilated(droneClass: Class<out BorgDrone<T, C>>): T? {
-        return collective[droneClass] as? T
-    }
+    fun <T> getAssimilated(droneClass: Class<out BorgDrone<T, C>>): T? = collective[droneClass] as? T
 
     /**
      * Gets a previously assimilated drone value, throwing if not found.
@@ -114,6 +123,7 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
      * @param context The context object needed for initialization of all drones
      */
     suspend fun assimilate(context: C) = coroutineScope {
+        assimilationState.value = AssimilationState.IN_PROGRESS
         // Get sorted units for parallel assimilation where possible
         val units = getAssimilationUnits()
 
@@ -131,6 +141,7 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
             }
             deferreds.awaitAll()
         }
+        assimilationState.value = AssimilationState.COMPLETE
         log("All drones have been assimilated.")
     }
 

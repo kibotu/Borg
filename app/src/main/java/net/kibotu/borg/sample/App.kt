@@ -2,6 +2,7 @@ package net.kibotu.borg.sample
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import dagger.BindsInstance
 import dagger.Component
 import dagger.Module
@@ -32,6 +33,12 @@ class App : Application() {
             enableLogging = true
         )
 
+        applicationScope.launch {
+            // Log the current assimilation state
+            borg.assimilationState.collect { state ->
+                Log.v("Borg", "Assimilation State: $state")
+            }
+        }
         // Initialize all drones with context
         applicationScope.launch {
             borg.assimilate(applicationContext)

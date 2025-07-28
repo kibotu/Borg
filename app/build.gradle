@@ -51,6 +51,12 @@ android {
         ]
     }
 
+    kotlin {
+        sourceSets.configureEach {
+            languageSettings.enableLanguageFeature("ExplicitBackingFields")
+        }
+    }
+
     // endregion
     buildFeatures {
         compose true

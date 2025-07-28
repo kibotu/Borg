@@ -44,11 +44,16 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
-        allWarningsAsErrors = false
         kotlinOptions.verbose = true
         freeCompilerArgs += [
-                "-Xjvm-default=all-compatibility"
+                "-Xjvm-default=all-compatibility",
         ]
+    }
+
+    kotlin {
+        sourceSets.configureEach {
+            languageSettings.enableLanguageFeature("ExplicitBackingFields")
+        }
     }
 
     // endregion
@@ -70,7 +75,7 @@ android {
 
 dependencies {
     coreLibraryDesugaring getLibrary("com.android.tools:desugar_jdk_libs")
-    
+
     // Coroutines
     implementation getLibrary("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     implementation getLibrary("org.jetbrains.kotlinx:kotlinx-coroutines-android")
