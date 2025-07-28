@@ -7,7 +7,7 @@
 [![API](https://img.shields.io/badge/Target%20API-35%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=35)
 [![API](https://img.shields.io/badge/Java-17-brightgreen.svg?style=flat)](https://www.oracle.com/java/technologies/javase/17all-relnotes.html)
 [![Gradle Version](https://img.shields.io/badge/gradle-8.11.1-green.svg)](https://docs.gradle.org/current/release-notes)
-[![Kotlin](https://img.shields.io/badge/kotlin-2.1.0-green.svg)](https://kotlinlang.org/)
+[![Kotlin](https://img.shields.io/badge/kotlin-2.2.0-green.svg)](https://kotlinlang.org/)
 [![License](https://img.shields.io/badge/license-Apache%202-blue)](LICENSE)
 
 > Resistance is futile - your components will be assimilated in perfect order.
