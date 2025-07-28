@@ -10,6 +10,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.TimeSource.Monotonic.markNow
 import kotlin.time.measureTimedValue
 
 /**
@@ -101,7 +102,8 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
      * @throws ClassCastException if the cached value is not of type T
      */
     @Suppress("UNCHECKED_CAST")
-    fun <T> getAssimilated(droneClass: Class<out BorgDrone<T, C>>): T? = collective[droneClass] as? T
+    fun <T> getAssimilated(droneClass: Class<out BorgDrone<T, C>>): T? =
+        collective[droneClass] as? T
 
     /**
      * Gets a previously assimilated drone value, throwing if not found.
@@ -123,6 +125,7 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
      * @param context The context object needed for initialization of all drones
      */
     suspend fun assimilate(context: C) = coroutineScope {
+        val startTime = markNow()
         assimilationState.value = AssimilationState.IN_PROGRESS
         // Get sorted units for parallel assimilation where possible
         val units = getAssimilationUnits()
@@ -142,7 +145,7 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
             deferreds.awaitAll()
         }
         assimilationState.value = AssimilationState.COMPLETE
-        log("All drones have been assimilated.")
+        log("All drones have been assimilated after ${markNow() - startTime}.")
     }
 
     /**
