@@ -1,8 +1,8 @@
 # Borg 🤖
 
 [![](https://jitpack.io/v/kibotu/Borg.svg)](https://jitpack.io/#kibotu/Borg)
-[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.x-blue.svg)](https://kotlinlang.org)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.2.x-blue.svg)](https://kotlinlang.org)
+[![License](https://img.shields.io/badge/license-Apache%202-blue)](LICENSE)
 
 A powerful, coroutine-based dependency initialization orchestrator for Android applications. Borg ensures your components are initialized in the correct order, with maximum parallelization and bulletproof thread safety.
 
