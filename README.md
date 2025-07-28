@@ -15,7 +15,7 @@
 🚀 **About**
 Borg is a high-performance Android initialization orchestrator that brings order to your app's startup chaos. It automatically manages complex dependency graphs, parallelizes independent initializations, and provides bulletproof thread safety - all with the elegance of Kotlin coroutines.
 
-[screenshot](docs/teaser.png)
+![screenshot](docs/teaser.png)
 
 ## Table of Contents 📑
 - [Why Borg?](#why-borg-)
