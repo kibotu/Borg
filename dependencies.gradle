@@ -17,12 +17,12 @@ ext {
     println "Kotlin: $kotlinVersion"
     println "Version Name: $version"
 
-    plugin = [
-            ksp                : "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:$kotlinVersion-2.0.2",
-            mavenCentralPublish: "com.vanniktech:gradle-maven-publish-plugin:0.30.0",
-            gradleBuildTools   : "com.android.tools.build:gradle:8.11.1",
-            kotlinGradle       : "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion",
-            compose            : "org.jetbrains.kotlin:compose-compiler-gradle-plugin:$kotlinVersion",
+    plugins = [
+            "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin"      : "$kotlinVersion-2.0.2",
+            "com.vanniktech:gradle-maven-publish-plugin"                         : "0.30.0",
+            "com.android.tools.build:gradle"                                     : "8.11.1",
+            "org.jetbrains.kotlin:kotlin-gradle-plugin"                         : "$kotlinVersion",
+            "org.jetbrains.kotlin:compose-compiler-gradle-plugin"               : "$kotlinVersion"
     ]
 
     libs = [
@@ -68,12 +68,20 @@ ext {
 
     LIBRARIES = libs + desugaring
 
-    getLibrary = { String lib ->
-        Map.Entry<String, String> libData = LIBRARIES.find { Map.Entry<String, String> entry -> entry["key"] == lib }
+    getLibraryFromMap = { Map<String, String> map, String lib ->
+        Map.Entry<String, String> libData = map.find { Map.Entry<String, String> entry -> entry["key"] == lib }
 
         def key = libData?.key
         def value = libData?.value
 
         return (value && value.toString().trim()) ? "${key}:${value}" : "${key}"
+    }
+
+    getLibrary = { String lib ->
+        getLibraryFromMap(LIBRARIES, lib)
+    }
+
+    getPluginLibrary = { String lib ->
+        getLibraryFromMap(plugins, lib)
     }
 }
