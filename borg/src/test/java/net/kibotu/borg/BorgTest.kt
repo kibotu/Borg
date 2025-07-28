@@ -61,7 +61,7 @@ class BorgTest {
             override fun requiredDrones(): List<Class<out BorgDrone<*>>> =
                 listOf(Drone1::class.java)
         }
-        
+
         drone2 = Drone2::class
 
         try {
