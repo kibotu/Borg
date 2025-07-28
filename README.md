@@ -433,6 +433,6 @@ This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENS
 
 ## Acknowledgments 🙏
 
-- Inspired by Star Trek's Borg Collective
+- Inspired by Star Trek's Borg Collective & [androidx.startup](https://developer.android.com/topic/libraries/app-startup)
 - Built with Kotlin Coroutines
 - Made with ❤️ by [kibotu](https://github.com/kibotu) 
