@@ -76,8 +76,6 @@ dependencies {
     implementation getLibrary("org.jetbrains.kotlinx:kotlinx-coroutines-android")
 
     // Testing
-    testImplementation getLibrary("androidx.compose.ui:ui-test-junit4")
-    testImplementation getLibrary("androidx.compose.ui:ui-test-manifest")
     testImplementation getLibrary("org.jetbrains.kotlin:kotlin-test-junit")
     testImplementation getLibrary("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     testImplementation getLibrary("junit:junit")
