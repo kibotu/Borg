@@ -24,6 +24,7 @@ class App : Application() {
     }
 
     private fun setupBorg() {
+        Borg.logEnabled = true
         val borg = Borg(
             setOf(
                 DaggerDrone(),
