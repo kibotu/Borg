@@ -1,7 +1,13 @@
 # Borg 🤖
 
+[![Maven Central Version](https://img.shields.io/maven-central/v/net.kibotu/Borg)](https://central.sonatype.com/artifact/net.kibotu/Borg)
 [![](https://jitpack.io/v/kibotu/Borg.svg)](https://jitpack.io/#kibotu/Borg)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.2.x-blue.svg)](https://kotlinlang.org)
+[![Android CI](https://github.com/kibotu/Borg/actions/workflows/android.yml/badge.svg)](https://github.com/kibotu/Borg/actions/workflows/android.yml)
+[![API](https://img.shields.io/badge/Min%20API-21%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=21)
+[![API](https://img.shields.io/badge/Target%20API-35%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=35)
+[![API](https://img.shields.io/badge/Java-17-brightgreen.svg?style=flat)](https://www.oracle.com/java/technologies/javase/17all-relnotes.html)
+[![Gradle Version](https://img.shields.io/badge/gradle-8.11.1-green.svg)](https://docs.gradle.org/current/release-notes)
+[![Kotlin](https://img.shields.io/badge/kotlin-2.1.0-green.svg)](https://kotlinlang.org/)
 [![License](https://img.shields.io/badge/license-Apache%202-blue)](LICENSE)
 
 > Resistance is futile - your components will be assimilated in perfect order.
@@ -55,6 +61,22 @@ Modern Android apps face complex initialization challenges:
 - **Flexibility**: Generic context type for any initialization needs
 
 ## Installation 📦
+
+### Maven Central
+
+```groovy
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+}
+
+dependencies {
+    implementation 'net.kibotu:Borg:{latest-version}'
+}
+```
+
+### JitPack (Alternative)
 
 1. Add JitPack repository:
 ```groovy
