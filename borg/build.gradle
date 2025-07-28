@@ -69,16 +69,18 @@ android {
 }
 
 dependencies {
-    coreLibraryDesugaring desugaring.jdk
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2"
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
+    coreLibraryDesugaring getLibrary("com.android.tools:desugar_jdk_libs")
+    
+    // Coroutines
+    implementation getLibrary("org.jetbrains.kotlinx:kotlinx-coroutines-core")
+    implementation getLibrary("org.jetbrains.kotlinx:kotlinx-coroutines-android")
 
-    testImplementation "androidx.compose.ui:ui-test-junit4:1.8.3"
-    testImplementation "androidx.compose.ui:ui-test-manifest:1.8.3"
-    testImplementation "org.jetbrains.kotlin:kotlin-test-junit:2.2.0"
-    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2"
-    testImplementation "junit:junit:4.13.2"
-
+    // Testing
+    testImplementation getLibrary("androidx.compose.ui:ui-test-junit4")
+    testImplementation getLibrary("androidx.compose.ui:ui-test-manifest")
+    testImplementation getLibrary("org.jetbrains.kotlin:kotlin-test-junit")
+    testImplementation getLibrary("org.jetbrains.kotlinx:kotlinx-coroutines-test")
+    testImplementation getLibrary("junit:junit")
 }
 
 if (!isJitpack) {

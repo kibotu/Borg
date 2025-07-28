@@ -58,23 +58,28 @@ android {
 }
 
 dependencies {
-    coreLibraryDesugaring desugaring.jdk
-    implementation 'androidx.core:core-ktx:1.16.0'
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.9.2'
-    implementation 'androidx.activity:activity-compose:1.10.1'
-    implementation platform('androidx.compose:compose-bom:2025.07.00')
-    implementation 'androidx.compose.ui:ui'
-    implementation 'androidx.compose.ui:ui-graphics'
-    implementation 'androidx.compose.ui:ui-tooling-preview'
-    implementation 'androidx.compose.material3:material3'
-    debugImplementation 'androidx.compose.ui:ui-tooling'
-    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+    coreLibraryDesugaring getLibrary("com.android.tools:desugar_jdk_libs")
+    
+    // AndroidX
+    implementation getLibrary("androidx.core:core-ktx")
+    implementation getLibrary("androidx.lifecycle:lifecycle-runtime-ktx")
+    implementation getLibrary("androidx.activity:activity-compose")
+    
+    // Compose
+    implementation platform(getLibrary("androidx.compose:compose-bom"))
+    implementation getLibrary("androidx.compose.ui:ui")
+    implementation getLibrary("androidx.compose.ui:ui-graphics")
+    implementation getLibrary("androidx.compose.ui:ui-tooling-preview")
+    implementation getLibrary("androidx.compose.material3:material3")
+    debugImplementation getLibrary("androidx.compose.ui:ui-tooling")
+    debugImplementation getLibrary("androidx.compose.ui:ui-test-manifest")
 
-    implementation "com.google.dagger:dagger-android-support:2.57"
-    implementation "com.google.dagger:dagger-android:2.57"
-    ksp "com.google.dagger:dagger-compiler:2.57"
-    ksp "com.google.dagger:dagger-android-processor:2.57"
-    kspTest "com.google.dagger:dagger-compiler:2.57"
+    // Dagger
+    implementation getLibrary("com.google.dagger:dagger-android-support")
+    implementation getLibrary("com.google.dagger:dagger-android")
+    ksp getLibrary("com.google.dagger:dagger-compiler")
+    ksp getLibrary("com.google.dagger:dagger-android-processor")
+    kspTest getLibrary("com.google.dagger:dagger-compiler")
 
     implementation project(":borg")
 }

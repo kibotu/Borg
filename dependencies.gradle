@@ -16,22 +16,64 @@ ext {
     println "Target SDK Version: $targetSdkVer"
     println "Kotlin: $kotlinVersion"
     println "Version Name: $version"
+
+    plugin = [
+            ksp                : "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:$kotlinVersion-2.0.2",
+            mavenCentralPublish: "com.vanniktech:gradle-maven-publish-plugin:0.30.0",
+            gradleBuildTools   : "com.android.tools.build:gradle:8.11.1",
+            kotlinGradle       : "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion",
+            compose            : "org.jetbrains.kotlin:compose-compiler-gradle-plugin:$kotlinVersion",
+    ]
+
+    libs = [
+            // AndroidX
+            "androidx.core:core-ktx"                          : "1.16.0",
+            "androidx.lifecycle:lifecycle-runtime-ktx"        : "2.9.2",
+            "androidx.activity:activity-compose"              : "1.10.1",
+
+            // Compose
+            "androidx.compose:compose-bom"                    : "2025.07.00",
+            "androidx.compose.ui:ui"                          : "",
+            "androidx.compose.ui:ui-graphics"                 : "",
+            "androidx.compose.ui:ui-tooling-preview"          : "",
+            "androidx.compose.material3:material3"            : "",
+            "androidx.compose.ui:ui-tooling"                  : "",
+            "androidx.compose.ui:ui-test-manifest"            : "",
+            "androidx.compose.ui:ui-test-junit4"              : "",
+
+            // Support Libraries
+            "androidx.appcompat:appcompat"                    : "1.7.0",
+            "androidx.constraintlayout:constraintlayout"      : "2.1.4",
+            "com.google.android.material:material"            : "1.12.0",
+
+            // Dagger
+            "com.google.dagger:dagger-android-support"        : "2.57",
+            "com.google.dagger:dagger-android"                : "2.57",
+            "com.google.dagger:dagger-compiler"               : "2.57",
+            "com.google.dagger:dagger-android-processor"      : "2.57",
+
+            // Coroutines
+            "org.jetbrains.kotlinx:kotlinx-coroutines-core"   : "1.10.2",
+            "org.jetbrains.kotlinx:kotlinx-coroutines-android": "1.10.2",
+            "org.jetbrains.kotlinx:kotlinx-coroutines-test"   : "1.10.2",
+
+            // Testing
+            "org.jetbrains.kotlin:kotlin-test-junit"          : "$kotlinVersion",
+            "junit:junit"                                     : "4.13.2"
+    ]
+
+    desugaring = [
+            "com.android.tools:desugar_jdk_libs": "2.1.5"
+    ]
+
+    LIBRARIES = libs + desugaring
+
+    getLibrary = { String lib ->
+        Map.Entry<String, String> libData = LIBRARIES.find { Map.Entry<String, String> entry -> entry["key"] == lib }
+
+        def key = libData?.key
+        def value = libData?.value
+
+        return (value && value.toString().trim()) ? "${key}:${value}" : "${key}"
+    }
 }
-
-ext.plugin = [
-        ksp                : "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:$kotlinVersion-2.0.2",
-        mavenCentralPublish: "com.vanniktech:gradle-maven-publish-plugin:0.30.0",
-        gradleBuildTools   : "com.android.tools.build:gradle:8.11.1",
-        kotlinGradle       : "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion",
-        compose       : "org.jetbrains.kotlin:compose-compiler-gradle-plugin:$kotlinVersion",
-]
-
-ext.libs = [
-        supportAppCompat : "androidx.appcompat:appcompat:1.7.0",
-        constraintLayout : "androidx.constraintlayout:constraintlayout:2.1.4",
-        material         : "com.google.android.material:material:1.12.0",
-]
-
-ext.desugaring = [
-        jdk: "com.android.tools:desugar_jdk_libs:2.1.5"
-]
