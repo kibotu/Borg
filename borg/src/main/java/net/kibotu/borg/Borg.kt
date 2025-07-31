@@ -127,7 +127,7 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
      */
     suspend fun assimilate(context: C) = coroutineScope {
         val startTime = markNow()
-        (assimilationState as MutableStateFlow).value = AssimilationState.IN_PROGRESS
+        assimilationState.value = AssimilationState.IN_PROGRESS
         // Get sorted units for parallel assimilation where possible
         val units = getAssimilationUnits()
 
@@ -136,17 +136,13 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
             // All drones in a unit can be assimilated in parallel
             val deferreds = unit.map { droneClass ->
                 async {
-                    val dt = measureTimedValue {
-                        assimilateDrone(droneClass, context)
-                    }
-                    log("${droneClass.simpleName}: assimilated after ${dt.duration}")
-                    dt.value
+                    assimilateDrone(droneClass, context)
                 }
             }
             deferreds.awaitAll()
         }
-        (assimilationState as MutableStateFlow).value = AssimilationState.COMPLETE
-        log("All drones have been assimilated after ${markNow() - startTime}.")
+        assimilationState.value = AssimilationState.COMPLETE
+        log("All drones have been assimilated after ${markNow() - startTime}")
     }
 
     /**
@@ -183,7 +179,10 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
             collective[clazz]?.let { return it }
 
             try {
-                val result = (drone as BorgDrone<Any?, C>).assimilate(context, this)
+                val (result, duration) = measureTimedValue {
+                    (drone as BorgDrone<Any?, C>).assimilate(context, this)
+                }
+                log("${clazz.simpleName}: actual assimilation took $duration")
                 if (result == null) {
                     nullDrones.add(clazz)
                 } else {

@@ -314,4 +314,4 @@ class BorgTest {
         // Verify dependent drone can handle null result
         assertEquals("default value", borg.requireAssimilated(DependentDrone::class.java))
     }
-} 
+}
