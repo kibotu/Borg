@@ -70,7 +70,8 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
             }
         }
 
-    private val collective = ConcurrentHashMap<Class<out BorgDrone<*, C>>, Any?>()
+    private val collective = ConcurrentHashMap<Class<out BorgDrone<*, C>>, Any>()
+    private val nullDrones = Collections.synchronizedSet(mutableSetOf<Class<out BorgDrone<*, C>>>())
     private val assimilating =
         Collections.synchronizedSet(mutableSetOf<Class<out BorgDrone<*, C>>>())
     private val assimilated =
@@ -103,7 +104,8 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
      */
     @Suppress("UNCHECKED_CAST")
     fun <T> getAssimilated(droneClass: Class<out BorgDrone<T, C>>): T? =
-        collective[droneClass] as? T
+        if (droneClass in nullDrones) null
+        else collective[droneClass] as? T
 
     /**
      * Gets a previously assimilated drone value, throwing if not found.
@@ -115,9 +117,8 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
      */
     @Suppress("UNCHECKED_CAST")
     fun <T> requireAssimilated(droneClass: Class<out BorgDrone<T, C>>): T =
-        collective[droneClass] as? T ?: throw BorgException.DroneNotAssimilatedException(
-            droneClass
-        )
+        if (droneClass in nullDrones) throw BorgException.DroneNotAssimilatedException(droneClass)
+        else collective[droneClass] as? T ?: throw BorgException.DroneNotAssimilatedException(droneClass)
 
     /**
      * Orchestrates the initialization of all components in the collective while maximizing parallelism.
@@ -126,7 +127,7 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
      */
     suspend fun assimilate(context: C) = coroutineScope {
         val startTime = markNow()
-        assimilationState.value = AssimilationState.IN_PROGRESS
+        (assimilationState as MutableStateFlow).value = AssimilationState.IN_PROGRESS
         // Get sorted units for parallel assimilation where possible
         val units = getAssimilationUnits()
 
@@ -144,7 +145,7 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
             }
             deferreds.awaitAll()
         }
-        assimilationState.value = AssimilationState.COMPLETE
+        (assimilationState as MutableStateFlow).value = AssimilationState.COMPLETE
         log("All drones have been assimilated after ${markNow() - startTime}.")
     }
 
@@ -183,7 +184,11 @@ class Borg<C>(drones: Set<BorgDrone<*, C>>, private val enableLogging: Boolean =
 
             try {
                 val result = (drone as BorgDrone<Any?, C>).assimilate(context, this)
-                collective[clazz] = result
+                if (result == null) {
+                    nullDrones.add(clazz)
+                } else {
+                    collective[clazz] = result
+                }
                 result
             } catch (e: Exception) {
                 throw BorgException.AssimilationException(

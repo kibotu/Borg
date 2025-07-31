@@ -28,7 +28,9 @@ class App : Application() {
         val borg = Borg(
             drones = setOf(
                 DaggerDrone(),
-                RepositoryDrone()
+                RepositoryDrone(),
+                OptionalResultDrone(),
+                UseOptionalResultDrone()
             ),
             enableLogging = true
         )
@@ -87,5 +89,21 @@ class RepositoryDrone : BorgDrone<Repository, Context> {
         val daggerComponent = borg.requireAssimilated(DaggerDrone::class.java)
         // Use it to get our repository
         return daggerComponent.repository()
+    }
+}
+
+class OptionalResultDrone : BorgDrone<String?, Context> {
+    override suspend fun assimilate(context: Context, borg: Borg<Context>): String? = null
+}
+
+class UseOptionalResultDrone : BorgDrone<Unit, Context> {
+
+    override fun requiredDrones() = listOf(OptionalResultDrone::class.java)
+
+    override suspend fun assimilate(context: Context, borg: Borg<Context>) {
+        Log.v(
+            "Borg",
+            (borg.getAssimilated(OptionalResultDrone::class.java) ?: "No Optional Result")
+        )
     }
 }

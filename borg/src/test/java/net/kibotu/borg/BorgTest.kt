@@ -7,6 +7,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -280,5 +281,37 @@ class BorgTest {
         borg.assimilate(Unit)
 
         assertEquals(1, counter.get()) // Should only be assimilated once
+    }
+
+    @Test
+    fun `test optional result handling`() = runTest {
+        // Given
+        class OptionalResultDrone : BorgDrone<String?, Unit> {
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>): String? {
+                return null // Simulating an optional result
+            }
+        }
+
+        class DependentDrone : BorgDrone<String, Unit> {
+            override fun requiredDrones(): List<Class<out BorgDrone<*, Unit>>> =
+                listOf(OptionalResultDrone::class.java)
+
+            override suspend fun assimilate(context: Unit, borg: Borg<Unit>): String {
+                // Get optional result safely
+                val optionalValue = borg.getAssimilated(OptionalResultDrone::class.java)
+                return optionalValue ?: "default value"
+            }
+        }
+
+        // When
+        val borg = Borg(setOf(OptionalResultDrone(), DependentDrone()))
+        borg.assimilate(Unit)
+
+        // Then
+        // Verify optional result is properly cached
+        assertNull(borg.getAssimilated(OptionalResultDrone::class.java))
+        
+        // Verify dependent drone can handle null result
+        assertEquals("default value", borg.requireAssimilated(DependentDrone::class.java))
     }
 } 
