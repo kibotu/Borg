@@ -1,6 +1,6 @@
 ext {
     // refresh gradle dependencies: ./gradlew build --refresh-dependencies
-    minSdkVer = 21
+    minSdkVer = 23
 
     compileSdkVer = 36
     buildToolsVer = "36.0.0"
