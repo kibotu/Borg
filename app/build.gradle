@@ -42,9 +42,6 @@ android {
     // region kotlin compile options
 
     kotlin {
-        sourceSets.configureEach {
-            languageSettings.enableLanguageFeature("ExplicitBackingFields")
-        }
         compilerOptions {
             jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
             allWarningsAsErrors = false
@@ -53,7 +50,8 @@ android {
             freeCompilerArgs.addAll(
                     "-Xjvm-default=all-compatibility",
                     "-opt-in=kotlin.RequiresOptIn",
-                    "-Xannotation-default-target=param-property"
+                    "-Xannotation-default-target=param-property",
+                    "-Xexplicit-backing-fields"
             )
         }
     }
