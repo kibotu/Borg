@@ -70,7 +70,6 @@ kotlin {
         verbose = true
         // https://kotlinlang.org/docs/reference/java-to-kotlin-interop.html#default-methods-in-interfaces
         freeCompilerArgs.addAll(
-                "-Xjvm-default=all-compatibility",
                 "-opt-in=kotlin.RequiresOptIn",
                 "-Xannotation-default-target=param-property",
                 "-Xexplicit-backing-fields"
