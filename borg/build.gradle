@@ -1,13 +1,14 @@
 apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
 
 android {
-    namespace "net.kibotu.borg"
-    compileSdk compileSdkVer
+    namespace = "net.kibotu.borg"
+    compileSdk = compileSdkVer
     buildToolsVersion = buildToolsVer
 
     defaultConfig {
-        minSdk minSdkVer
-        targetSdk targetSdkVer
+        minSdk = minSdkVer
+        targetSdk = targetSdkVer
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments clearPackageData: 'true'
@@ -15,11 +16,11 @@ android {
 
     buildTypes {
         debug {
-            minifyEnabled false
+            minifyEnabled = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', '../proguard-debug.pro'
         }
         release {
-            minifyEnabled false
+            minifyEnabled = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro', '../proguard-release.pro'
         }
     }
@@ -41,20 +42,9 @@ android {
 
     // region kotlin compile options
 
-    kotlin {
-        compilerOptions {
-            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
-            allWarningsAsErrors = false
-            verbose = true
-            // https://kotlinlang.org/docs/reference/java-to-kotlin-interop.html#default-methods-in-interfaces
-            freeCompilerArgs.addAll(
-                    "-Xjvm-default=all-compatibility",
-                    "-opt-in=kotlin.RequiresOptIn",
-                    "-Xannotation-default-target=param-property",
-                    "-Xexplicit-backing-fields"
-            )
-        }
-    }
+//    kotlinOptions {
+//        jvmTarget = "17"
+//    }
 
     // endregion
 
@@ -73,6 +63,21 @@ android {
     // endregion
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        allWarningsAsErrors = false
+        verbose = true
+        // https://kotlinlang.org/docs/reference/java-to-kotlin-interop.html#default-methods-in-interfaces
+        freeCompilerArgs.addAll(
+                "-Xjvm-default=all-compatibility",
+                "-opt-in=kotlin.RequiresOptIn",
+                "-Xannotation-default-target=param-property",
+                "-Xexplicit-backing-fields"
+        )
+    }
+}
+
 dependencies {
     coreLibraryDesugaring getLibrary("com.android.tools:desugar_jdk_libs")
 
@@ -89,7 +94,7 @@ dependencies {
 if (!isJitpack) {
     apply plugin: 'com.vanniktech.maven.publish'
     mavenPublishing {
-        publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL, true)
+        publishToMavenCentral()
         signAllPublications()
     }
 }
@@ -109,3 +114,5 @@ if (isJitpack) {
         }
     }
 }
+
+apply from: "https://gist.githubusercontent.com/kibotu/d85392ab5775a52df9d753f0952e62b4/raw/ec00e859720d7b6070ede439fc2ac3df62409782/print-java-version.gradle"

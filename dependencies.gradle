@@ -18,20 +18,28 @@ ext {
     println "Version Name: $version"
 
     plugins = [
-            "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin"      : "2.3.4",
-            "com.vanniktech:gradle-maven-publish-plugin"                         : "0.30.0",
-            "com.android.tools.build:gradle"                                     : "9.0.0-rc02",
+            // https://mvnrepository.com/artifact/com.vanniktech/gradle-maven-publish-plugin
+            "com.vanniktech:gradle-maven-publish-plugin"                         : "0.35.0",
+            // https://mvnrepository.com/artifact/com.android.tools.build/gradle?repo=google
+            "com.android.tools.build:gradle"                                     : "8.13.2",
             "org.jetbrains.kotlin:kotlin-gradle-plugin"                         : "$kotlinVersion",
-            "org.jetbrains.kotlin:compose-compiler-gradle-plugin"               : "$kotlinVersion"
+            "org.jetbrains.kotlin:compose-compiler-gradle-plugin"               : "$kotlinVersion",
+            // https://github.com/google/ksp#supported-libraries
+            // https://mvnrepository.com/artifact/com.google.devtools.ksp/com.google.devtools.ksp.gradle.plugin?repo=central
+            "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin": "2.3.4",
     ]
 
     libs = [
             // AndroidX
+            // https://mvnrepository.com/artifact/androidx.core/core-ktx
             "androidx.core:core-ktx"                          : "1.17.0",
+            // https://mvnrepository.com/artifact/androidx.lifecycle/lifecycle-runtime-ktx
             "androidx.lifecycle:lifecycle-runtime-ktx"        : "2.10.0",
-            "androidx.activity:activity-compose"              : "1.12.2",
+            // https://mvnrepository.com/artifact/androidx.activity/activity-compose
+            "androidx.activity:activity-compose"              : "1.10.1",
 
             // Compose
+            // https://mvnrepository.com/artifact/androidx.compose/compose-bom
             "androidx.compose:compose-bom"                    : "2025.12.01",
             "androidx.compose.ui:ui"                          : "",
             "androidx.compose.ui:ui-graphics"                 : "",
@@ -41,18 +49,15 @@ ext {
             "androidx.compose.ui:ui-test-manifest"            : "",
             "androidx.compose.ui:ui-test-junit4"              : "",
 
-            // Support Libraries
-            "androidx.appcompat:appcompat"                    : "1.7.1",
-            "androidx.constraintlayout:constraintlayout"      : "2.2.1",
-            "com.google.android.material:material"            : "1.13.0",
-
             // Dagger
+            // https://mvnrepository.com/artifact/com.google.dagger/dagger-android-support
             "com.google.dagger:dagger-android-support"        : "2.57.2",
             "com.google.dagger:dagger-android"                : "2.57.2",
             "com.google.dagger:dagger-compiler"               : "2.57.2",
             "com.google.dagger:dagger-android-processor"      : "2.57.2",
 
             // Coroutines
+            // https://mvnrepository.com/artifact/org.jetbrains.kotlinx/kotlinx-coroutines-core
             "org.jetbrains.kotlinx:kotlinx-coroutines-core"   : "1.10.2",
             "org.jetbrains.kotlinx:kotlinx-coroutines-android": "1.10.2",
             "org.jetbrains.kotlinx:kotlinx-coroutines-test"   : "1.10.2",
@@ -63,6 +68,7 @@ ext {
     ]
 
     desugaring = [
+            // https://mvnrepository.com/artifact/com.android.tools/desugar_jdk_libs
             "com.android.tools:desugar_jdk_libs": "2.1.5"
     ]
 
