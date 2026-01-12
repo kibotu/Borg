@@ -114,4 +114,4 @@ if (isJitpack) {
     }
 }
 
-apply from: "https://gist.githubusercontent.com/kibotu/d85392ab5775a52df9d753f0952e62b4/raw/ec00e859720d7b6070ede439fc2ac3df62409782/print-java-version.gradle"
+apply from: "https://gist.githubusercontent.com/kibotu/d85392ab5775a52df9d753f0952e62b4/raw/3531af3b653075493179556e488032292dc946e8/print-java-version.gradle"
