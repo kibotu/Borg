@@ -24,10 +24,6 @@ android {
         }
     }
 
-    publishing {
-        singleVariant("release")
-    }
-
     // region java compile options
 
     java {
@@ -107,7 +103,7 @@ if (isJitpack) {
         publishing {
             publications {
                 release(MavenPublication) {
-                    from components.findByName("release")
+                    from components.release
                     groupId = GROUP
                     artifactId = POM_ARTIFACT_ID
                     version = version
