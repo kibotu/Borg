@@ -2,9 +2,9 @@ ext {
     // refresh gradle dependencies: ./gradlew build --refresh-dependencies
     minSdkVer = 23
 
-    compileSdkVer = 36
-    buildToolsVer = "36.0.0"
-    targetSdkVer = 36
+    compileSdkVer = 37
+    buildToolsVer = "37.0.0"
+    targetSdkVer = 37
 
     // @see https://mvnrepository.com/artifact/org.jetbrains.kotlin/kotlin-stdlib-jdk8
     kotlinVersion = "2.4.10"

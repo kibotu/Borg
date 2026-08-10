@@ -1,2 +1,6 @@
+plugins {
+    // https://mvnrepository.com/artifact/org.gradle.toolchains.foojay-resolver-convention/org.gradle.toolchains.foojay-resolver-convention.gradle.plugin
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
 include ':app'
 include ':borg'
