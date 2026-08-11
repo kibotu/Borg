@@ -9,6 +9,8 @@ android {
         minSdk = minSdkVer
         targetSdk = targetSdkVer
 
+        consumerProguardFiles 'consumer-rules.pro'
+
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments clearPackageData: 'true'
     }
